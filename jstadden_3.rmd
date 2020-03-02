@@ -1,0 +1,82 @@
+---
+title: "Assignment 3"
+author: "Jared Stadden"
+date: "3/1/2020"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Preliminary data setup:
+
+```{r}
+#Reading data into R
+original = read.csv("C:\\Users\\jared\\Desktop\\FlightDelays.csv")
+
+#loading libraries
+library(caret)
+library(ISLR)
+library(e1071)
+
+#create working dataset
+flight<-original
+
+#transforming some variables to facor
+flight$DAY_WEEK <- factor(flight$DAY_WEEK)
+flight$SCH_DEP_TIME <- factor(round(flight$CRS_DEP_TIME/100))
+
+#keep only categorical predictors and target variable
+flight <- flight[,c(10,14,8,4,2,13)]
+```
+
+
+Partitioning the data into Training and Validation sets
+```{r}
+set.seed(123)
+
+Index_Train<-createDataPartition(flight$Flight.Status, p=0.6, list = FALSE)
+Train<-flight[Index_Train,]
+Validation<-flight[-Index_Train,]
+```
+
+
+Creating Naive Bayes classifier with tuning
+```{r}
+nb_model <- naiveBayes(Flight.Status~DAY_WEEK+SCH_DEP_TIME+ORIGIN+DEST+CARRIER,data = Train, preProc=c("BoxCox","center","scale"))
+
+#predict delay status in validation set
+Predicted_Validation_labels <- predict(nb_model,Validation)
+```
+
+
+Counts Table:
+```{r}
+table(Train$Flight.Status,Train$DEST)
+```
+
+
+Proportion Table:
+```{r}
+prop.table(table(Train$Flight.Status,Train$DEST),margin=1) 
+```
+
+
+Confusion Matrix:
+```{r}
+library("gmodels")
+CrossTable(x=Validation$Flight.Status,y=Predicted_Validation_labels,prop.chisq = FALSE)
+```
+
+
+
+ROC and plot of ROC curve:
+```{r}
+Predicted_Validation_labels <- predict(nb_model,Validation,type="raw")
+
+library(pROC)
+roc(Validation$Flight.Status, Predicted_Validation_labels[,2])
+plot.roc(Validation$Flight.Status,Predicted_Validation_labels[,2])  
+```
