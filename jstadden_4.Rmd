@@ -1,0 +1,128 @@
+---
+title: "Assignment 4"
+author: "Jared Stadden"
+date: "3/15/2020"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+Initial data setup (removing missing records) and loading libraries
+```{r}
+#Read data into R
+original = read.csv("C:\\Users\\jared\\Desktop\\Universities.csv")
+
+#loading libraries
+#install.packages("factoextra")
+#install.packages("tidyverse")
+#install.packages("flexclust")
+library(factoextra)
+library(tidyverse)
+library(ISLR)
+library(flexclust)
+
+set.seed(123)
+
+#removing NAs
+uni_complete<-na.omit(original)  
+
+#normalizing data
+uni_complete[,4:20]<-as.data.frame(scale(uni_complete[,4:20]))
+uni<-uni_complete[,4:20]
+```
+
+Determining opitmal number of clusters:
+```{r}
+#Elbow Method
+fviz_nbclust(uni,kmeans,method = "wss")
+
+#Silhouette Method
+fviz_nbclust(uni,kmeans,method = "silhouette") 
+```
+From the methods above 3 clusters seem to be the optimal choice.
+
+K Means Clustering of continuous measurements 
+```{r}
+#Computing K Means
+k3 <- kmeans(uni,centers = 3,nstart = 25)
+
+#Creating dataframe of centroids of clusters
+centroids <- as.data.frame(k3$centers)
+
+#Seeing the size of each cluster
+k3$siz
+
+#Visualizing the clusters
+fviz_cluster(k3,data = uni)
+
+```
+
+Comparing summary statistics by cluster
+```{r}
+uni$cluster <-as.factor(k3$cluster)
+aggregate(uni,by=list(uni$cluster), FUN=mean)
+```
+Cluster 1: Low enrollment/acceptance rate, Low tuition, Fewer top tier students, Fewer Phd faculty, Moderate student to faculty ratio, Low graduation rate
+
+Cluster 2: Average enrollment/acceptance rate, High tuition, More top tier students, Low student to faculty ratio, High graduation rate
+
+Cluster 3: High enrollment/acceptance rate, Low tuition, Average qualtity students, Larger student to faculty ratio, Lower graduation rate
+
+Characterizing the clusters by catergorical measurements
+```{r}
+uni_complete$cluster<-as.factor(k3$cluster)
+
+table(uni_complete$cluster, uni_complete$State)
+round(prop.table(table(uni_complete$cluster, uni_complete$State),margin = 1),2)
+
+table(uni_complete$cluster, uni_complete$Public..1...Private..2.)
+round(prop.table(table(uni_complete$cluster, uni_complete$Public..1...Private..2.),margin = 1),2)
+
+#prop.table(table(uni_complete$State,uni_complete$cluster),margin = 1)
+#prop.table(table(uni_complete$Public..1...Private..2.,uni_complete$cluster),margin = 1)
+
+```
+It is difficult to determine a relationship between clusters and State, but there seems to be a relationship between Public/Private and the clusters.\
+Cluster 2 is almost exclusively composed of private colleges, while Cluster 3 leans quite heavily into public universities. Cluster 1 has a less extreme split, but contains a majority of private universities. 
+
+
+What external info can explain some or all of the clusters?\
+The rank of the schools may play a role in the clusters. Highly ranked schools receive many qualified applicants and can make them more selective. This demand can also lead to higher tuition costs. Highly ranked schools also generally have prestigious faculty, which could be implied by the number of faculty with Phds component.\
+Another piece of information that is missing, but could help explain the clusters is the type of degrees/programs offered by the schools. For example, one of the clusters might have a high concentration of liberal arts colleges while another cluster might be full of science focused schools.\
+
+
+Predicting Tufts’ cluster:
+```{r}
+#Retreiving and normalizing the Tufts data
+tufts <- subset(original,College.Name == "Tufts University")
+uni_tufts<-na.omit(original) 
+uni_tufts<-rbind(uni_tufts,tufts)
+uni_tufts[,4:20]<-as.data.frame(scale(uni_tufts[,4:20]))
+tufts_norm<-uni_tufts[472,4:20] 
+
+#Imputing and computing distance from cluster 1
+clust1_cent<-centroids[1,]
+tufts_norm$X..PT.undergrad<-clust1_cent$X..PT.undergrad
+tufts_dist1<-dist(rbind(clust1_cent,tufts_norm))
+tufts_dist1
+
+#Imputing and computing distance from cluster 2
+clust2_cent<-centroids[2,]
+tufts_norm$X..PT.undergrad<-clust2_cent$X..PT.undergrad
+tufts_dist2<-dist(rbind(clust2_cent,tufts_norm))
+tufts_dist2
+
+#Imputing and computing distance from cluster 3
+clust3_cent<-centroids[3,]
+tufts_norm$X..PT.undergrad<-clust3_cent$X..PT.undergrad
+tufts_dist3<-dist(rbind(clust3_cent,tufts_norm))
+tufts_dist3
+```
+Tufts has the smallest distance from and would be best classified into cluster 2.
+
+
+
