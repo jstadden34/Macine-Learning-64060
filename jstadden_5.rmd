@@ -1,0 +1,93 @@
+---
+title: "jstadden_5"
+author: "Jared Stadden"
+date: "4/19/2020"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r}
+#Read data into R
+original = read.csv("C:\\Users\\jared\\Desktop\\Cereals.csv")
+
+cereal <- na.omit(original)
+
+#install.packages("stats")
+#install.packages("cluster")
+#install.packages("factoextra")
+
+library(stats)
+library(cluster)
+library(ISLR)
+
+```
+.
+
+```{r}
+#Normalize data
+cereal[,4:16] <- scale(cereal[,4:16])
+df <- cereal
+
+#Applying various methods
+hc_single <- agnes(df, method = "single")
+hc_complete <- agnes(df, method = "complete")
+hc_average <- agnes(df, method = "average")
+hc_ward <- agnes(df, method = "ward")
+
+#Choose method with output closest to 1
+print(hc_single$ac)
+print(hc_complete$ac)
+print(hc_average$ac)
+print(hc_ward$ac)
+```
+
+1. Ward method is best since its value is closest to 1.
+
+
+```{r}
+#Applying Ward Heirarchical-Clustering
+d <- dist(df, method = "euclidean")
+hc_ward <- hclust(d, method = "ward")  
+
+#Plot Dendrogram
+plot(hc_ward, cex = 0.6)
+
+#Dendrogram with rectangles for each cluster
+rect.hclust(hc_ward, k = 4, border = 1:4)
+```
+2. Based on the dendrogram I am going to use 4 clusters
+
+
+```{r}
+#Assigning clusters
+memb <- cutree(hc_ward, k=4)
+df$cluster <- memb
+```
+
+```{r}
+#Splitting the data
+set.seed(123)
+Index_Train<- sample(seq_len(nrow(cereal)),size=floor(0.6*nrow(cereal)))
+Train<-cereal[Index_Train,]
+Validation<-cereal[-Index_Train,]
+
+#Clustering
+d2 <- dist(Train, method = "euclidean")
+hc_ward2 <- hclust(d2, method = "ward")  
+memb <- cutree(hc_ward2, k=4)
+Train$cluster <- memb
+head(Train)
+```
+3. Couldn't get centroids to work
+
+
+
+4. The data should be normalized. When data is not normalized the distance calculations of the clustering method place extra importance on variables with larger values. When assessing the healthiness of cereal we wouldn't want potassium to be overvalued compared to more important indicators such as vitamins, sugars, or fat. Normalization would ensure that clusters are created more fairly across measures of health with different units and scales but equal importance. 
