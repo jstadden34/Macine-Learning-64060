@@ -1,0 +1,125 @@
+---
+title: "Final Exam"
+author: "Jared Stadden"
+date: "5/7/2020"
+output: word_document
+---
+
+## R Markdown
+
+
+```{r include=FALSE}
+ #Read data into R
+original = read.csv("C:\\Users\\jared\\Desktop\\BathSoap.csv")
+#Create working copy
+soap <- original
+
+#load libraries
+library(factoextra)
+library(tidyverse)
+library(ISLR)
+library(flexclust)
+
+#set seed to make repeatable
+set.seed(123)
+
+#summarize the data
+summary(soap)
+```
+
+The variables containing percentages were converted to numbers so that they could be included in the k-means analysis.
+
+I have chosen to use a derived variable to represent the customer loyalty aspect of the percent of total purchases by brand variables. I used the maximum percentage of any of the brands for the customer for this measure. A high max would show that the customer is loyal to a brand whereas a low max would indicate that they customer's purchases are spread across many brands. 
+
+I have normalized the values of the variables that will be used in the k-means analysis to prevent some variable to become overweighted simply because their inherently have larger values than another variable.
+
+```{r include=FALSE}
+ #converting the percentages to numbers
+for(i in 20:46){
+  soap[,i]<-as.integer(sub("%", "",soap[,i]))
+}
+
+#creating a new derived variable to represent measure of loyalty 
+soap$max_loyalty <- 0
+for(i in 1:600){
+  soap[i,47]<-max(soap[i,23:30])
+}
+
+#normalize numeric variables
+soap[,12:47]<-as.data.frame(scale(soap[,12:47]))
+```
+
+Determing the appropriate k input:
+```{r echo=FALSE}
+#choosing optimal k
+ fviz_nbclust(soap[,12:47],kmeans,method = "wss")
+```
+It appears that 3 would be the optimal k from this graph, if we are assume our marketing efforts can only handle between two and five different approaches.  
+
+
+K-means based on Purchase Behavior:
+```{r echo=FALSE}
+ BP_soap <- soap[,c(12:22,47)]
+
+k1 <- kmeans(BP_soap,centers = 3,nstart = 25)
+
+centroids1 <- as.data.frame(k1$centers)
+print(centroids1)
+fviz_cluster(k1,data = BP_soap)
+```
+
+
+
+K-means based on Basis for Purchase:
+```{r echo=FALSE}
+PB_soap <- soap[,c(32:46)]
+
+k2 <- kmeans(PB_soap,centers = 3,nstart = 25)
+
+centroids2 <- as.data.frame(k2$centers)
+print(centroids2)
+fviz_cluster(k2,data = PB_soap)
+```
+
+
+
+K-means based on both Purchase Behavior and Basis for Purchase:
+```{r echo=FALSE}
+C_soap <- soap[,c(12:22,32:47)]
+
+k3 <- kmeans(C_soap,centers = 3,nstart = 25)
+
+centroids3 <- as.data.frame(k3$centers)
+print(centroids3)
+fviz_cluster(k3,data = C_soap)
+```
+
+
+
+I believe the first clustering based on Purchase Behavior variables is the best segmentation. There didn't seem to be any extremes in the centroids for the percent of volume based on product proposition categories and there are variables addressing the price issue already included within the Purchase Behavior variables, so Basis for Purchase doesn't add much to the analysis.
+
+Charateristics of clusters:
+```{r echo=FALSE}
+soap$cluster <-as.factor(k3$cluster)  
+aggregate(soap[,c(1:22,32:47)],by=list(soap$cluster), FUN=mean)
+```
+
+Cluster 1: lower socioeconomic class, lower education, least affluent, fewest number of brands purchased, few brand runs, few transactions, low-value transactions, higher volume per transaction, low price, more use of “other” promotions, most purchases from price category 3, high brand loyalty based on percentage purchased by brand 
+
+Cluster 2: mid-higher socioeconomic class, higher education, most affluent, higher number of brands purchased, higher number of brand runs, more transactions, lower volume per transaction, high price, high use of “promotion code 6”, most purchases from price category 1, lower brand loyalty based on percentage purchased by brand
+
+Cluster 3: middle socioeconomic class, mid-high education, more household members, somewhat affluent, moderate number of brands purchased, moderate number of brand runs, moderate transactions, moderate volume per transaction, moderate price, moderate promo use, most purchases from price category 2, moderate brand loyalty based on percentage purchased by brand
+
+
+
+Model to Predict/Assign Data to a Cluster
+```{r echo=FALSE}
+#Prediction values
+kf = kcca(BP_soap, k=3, kccaFamily("kmeans"))
+
+#Prediciton
+predict(kf)[1]
+```
+Ex. The sample data was predicted to belong to cluster 3. This means that this customer should be targeted with marketing that is deemed appropriate for similar customers of that cluster. 
+
+
